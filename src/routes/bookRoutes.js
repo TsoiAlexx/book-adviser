@@ -33,4 +33,30 @@ router.post("/", protectRoute, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// pagination => infinite scroll
+router.get("/", protectRoute, async (req, res) => {
+  try {
+    const { page = 1, limit = 5 } = req.query; // default to page 1 and limit 5
+    const skip = (page - 1) * limit;
+
+    const books = await Book.find({ user: req.user._id })
+      .sort({ createdAt: -1 }) // sort by most recent
+      .skip(skip)
+      .limit(limit) // limit to 10 books per request
+      .populate("user", "username profileImage"); // populate user details
+    res.send({
+      books,
+      currentPage: parseInt(page),
+      totalBooks: await Book.countDocuments({ user: req.user._id }),
+      totalPages: Math.ceil(
+        (await Book.countDocuments({ user: req.user._id })) / limit
+      ),
+    });
+  } catch (error) {
+    console.log("Error fetching books:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;
